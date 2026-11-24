@@ -1,0 +1,30 @@
+# Minimal Home Assistant configuration used by run_tests.py.
+# Fake entities: a pilot-wire heater mode (select) and two schedules (input_boolean).
+homeassistant:
+  name: Timed Scene tests
+  time_zone: Europe/Paris
+  latitude: 48.85
+  longitude: 2.35
+  elevation: 0
+  unit_system: metric
+  packages: !include_dir_named packages
+
+logger:
+  default: warning
+
+input_boolean:
+  schedule_weekdays:
+    name: Weekdays schedule
+    initial: true
+  schedule_weekend:
+    name: Weekend schedule
+    initial: false
+
+template:
+  - select:
+      - name: Heater mode
+        unique_id: test_heater_mode
+        state: "{{ 'frost_protection' }}"
+        options: "{{ ['off', 'comfort', 'eco', 'frost_protection'] }}"
+        optimistic: true
+        select_option: []

@@ -1,0 +1,11 @@
+{
+  "name": "timed-scene-card-tests",
+  "private": true,
+  "description": "Tests of timed-scene-card.js in a simulated browser (jsdom) with a fake Home Assistant.",
+  "scripts": {
+    "test": "node test_card.js && node test_editor.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.0.0"
+  }
+}

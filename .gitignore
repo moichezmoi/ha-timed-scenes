@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node (card tests)
+node_modules/
+package-lock.json
+
+# Editors
+*.swp
+*.kate-swp
+.vscode/
+.idea/
