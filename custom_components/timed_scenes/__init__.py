@@ -2,18 +2,28 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import voluptuous as vol
 
+from homeassistant.components.frontend import add_extra_js_url, remove_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.start import async_at_started
+from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
 from .manager import TimedScenesManager
 
 PLATFORMS = [Platform.SENSOR]
+
+# The card is served by the integration: no dashboard resource to declare.
+CARD_URL_BASE = f"/{DOMAIN}_static"
+CARD_FILE = "timed-scene-card.js"
+DATA_CARD = f"{DOMAIN}_card"
 
 type TimedScenesConfigEntry = ConfigEntry[TimedScenesManager]
 
@@ -49,6 +59,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: TimedScenesConfigEntry) 
     hass.services.async_register(DOMAIN, "delete", handle_delete, DELETE_SCHEMA, supports_response=SupportsResponse.OPTIONAL)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await _async_register_card(hass)
 
     # Scenes are started / stopped once Home Assistant runs: the controlled
     # entities (Zigbee devices, schedules...) must exist first.
@@ -66,4 +77,27 @@ async def async_unload_entry(hass: HomeAssistant, entry: TimedScenesConfigEntry)
     if unloaded:
         hass.services.async_remove(DOMAIN, "set")
         hass.services.async_remove(DOMAIN, "delete")
+        card = hass.data.get(DATA_CARD)
+        if card and card["url"]:
+            remove_extra_js_url(hass, card["url"])
+            card["url"] = None
     return unloaded
+
+
+async def _async_register_card(hass: HomeAssistant) -> None:
+    """Serves frontend/timed-scene-card.js and loads it on every page of the frontend.
+
+    The version of the integration is added to the URL (?v=0.4.0): after an
+    update, browsers load the new file instead of the one in their cache.
+    """
+    card = hass.data.setdefault(DATA_CARD, {"path_registered": False, "url": None})
+    if not card["path_registered"]:
+        # A static path cannot be unregistered: register it once per Home Assistant run.
+        await hass.http.async_register_static_paths(
+            [StaticPathConfig(CARD_URL_BASE, str(Path(__file__).parent / "frontend"), cache_headers=False)]
+        )
+        card["path_registered"] = True
+    if card["url"] is None:
+        integration = await async_get_integration(hass, DOMAIN)
+        card["url"] = f"{CARD_URL_BASE}/{CARD_FILE}?v={integration.version}"
+        add_extra_js_url(hass, card["url"])

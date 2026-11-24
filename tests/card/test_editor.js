@@ -4,7 +4,7 @@ const fs = require("fs");
 
 const path = require("path");
 // Card file: first argument, or the one of this repository.
-const cardFile = process.argv[2] || path.join(__dirname, "..", "..", "www", "timed-scene", "timed-scene-card.js");
+const cardFile = process.argv[2] || path.join(__dirname, "..", "..", "custom_components", "timed_scenes", "frontend", "timed-scene-card.js");
 const src = fs.readFileSync(cardFile, "utf8");
 const dom = new JSDOM(`<!DOCTYPE html><body></body>`, { runScripts: "outside-only", pretendToBeVisual: true });
 const w = dom.window;

@@ -4,7 +4,7 @@ const fs = require("fs");
 
 const path = require("path");
 // Card file: first argument, or the one of this repository.
-const cardFile = process.argv[2] || path.join(__dirname, "..", "..", "www", "timed-scene", "timed-scene-card.js");
+const cardFile = process.argv[2] || path.join(__dirname, "..", "..", "custom_components", "timed_scenes", "frontend", "timed-scene-card.js");
 const src = fs.readFileSync(cardFile, "utf8");
 const dom = new JSDOM(`<!DOCTYPE html><body></body>`, { runScripts: "outside-only", pretendToBeVisual: true });
 const w = dom.window;
@@ -137,6 +137,7 @@ const planned = {
   forms[1].dispatchEvent(new w.CustomEvent("value-changed", { detail: { value: { start_2: true } } }));
   sr.querySelector('[data-action="confirm"]').click();
   await tick();
+  check("save calls timed_scenes.set with return_response", calls.at(-1).domain === "timed_scenes" && calls.at(-1).service === "set" && calls.at(-1).return_response === true, calls.at(-1));
   let sd = calls.at(-1).service_data;
   check("payload: start, duration with days, no end", sd.start === "2026-11-20 08:00:00" && JSON.stringify(sd.duration) === '{"days":7,"hours":1,"minutes":30,"seconds":0}' && sd.end === undefined, sd);
   check("payload entities", JSON.stringify(sd.entities) === JSON.stringify([
@@ -179,14 +180,14 @@ const planned = {
   check("clear: title + text + button", sr.querySelector("h2").textContent === "Clear the planned scene?" && sr.textContent.includes("The planned scene will be removed.") && sr.querySelector('[data-action="confirm"]').textContent === "Clear");
   sr.querySelector('[data-action="confirm"]').click();
   await tick();
-  check("clear calls timed_scene_delete", calls.at(-1).service === "timed_scene_delete" && calls.at(-1).service_data.id === "heater");
+  check("clear calls timed_scenes.delete", calls.at(-1).domain === "timed_scenes" && calls.at(-1).service === "delete" && calls.at(-1).service_data.id === "heater");
   card.hass = makeHass({ heater: { ...planned.heater, status: "ongoing" } });
   btn("stop").click();
   await tick();
   check("stop: title + text + button", sr.querySelector("h2").textContent === "Stop the running scene?" && sr.textContent.includes("restored now") && sr.querySelector('[data-action="confirm"]').textContent === "Stop");
   sr.querySelector('[data-action="confirm"]').click();
   await tick();
-  check("stop calls timed_scene_delete", calls.at(-1).service === "timed_scene_delete");
+  check("stop calls timed_scenes.delete", calls.at(-1).domain === "timed_scenes" && calls.at(-1).service === "delete");
 
   console.log(`\nResult: ${ok}/${ok + ko} checks OK`);
   process.exitCode = ko ? 1 : 0;
