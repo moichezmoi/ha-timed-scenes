@@ -1,0 +1,35 @@
+set:
+  fields:
+    id:
+      required: true
+      example: living_room_heater
+      selector:
+        text:
+    start:
+      required: true
+      example: "2026-12-24 14:00:00"
+      selector:
+        datetime:
+    end:
+      selector:
+        datetime:
+    duration:
+      example: "03:00:00"
+      selector:
+        duration:
+          enable_day: true
+    entities:
+      required: true
+      example: >-
+        [{"entity": "select.living_room_heater_mode", "start_value": "eco",
+        "end_mode": "previous"}]
+      selector:
+        object:
+
+delete:
+  fields:
+    id:
+      required: true
+      example: living_room_heater
+      selector:
+        text:

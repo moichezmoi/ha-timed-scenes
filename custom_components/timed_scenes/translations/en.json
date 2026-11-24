@@ -9,5 +9,43 @@
     "abort": {
       "single_instance_allowed": "Timed Scenes is already installed."
     }
+  },
+  "services": {
+    "set": {
+      "name": "Set a timed scene",
+      "description": "Creates or replaces a timed scene. Returns {ok, errors} or {ok, id, start, end}.",
+      "fields": {
+        "id": {
+          "name": "Scene ID",
+          "description": "Identifier of the scene (lowercase letters, digits and _)."
+        },
+        "start": {
+          "name": "Start",
+          "description": "Start date and time."
+        },
+        "end": {
+          "name": "End",
+          "description": "End date and time (ignored when a duration is given)."
+        },
+        "duration": {
+          "name": "Duration",
+          "description": "Duration of the scene (takes precedence over end)."
+        },
+        "entities": {
+          "name": "Entities",
+          "description": "Ordered list of {entity, start_value, end_mode (value | previous | none), end_value}."
+        }
+      }
+    },
+    "delete": {
+      "name": "Delete a timed scene",
+      "description": "Deletes a timed scene. If it is running, its entities are restored immediately.",
+      "fields": {
+        "id": {
+          "name": "Scene ID",
+          "description": "Identifier of the scene."
+        }
+      }
+    }
   }
 }

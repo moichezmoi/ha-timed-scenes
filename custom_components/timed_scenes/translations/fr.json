@@ -9,5 +9,43 @@
     "abort": {
       "single_instance_allowed": "Timed Scenes est déjà installé."
     }
+  },
+  "services": {
+    "set": {
+      "name": "Définir une scène temporisée",
+      "description": "Crée ou remplace une scène temporisée. Renvoie {ok, errors} ou {ok, id, start, end}.",
+      "fields": {
+        "id": {
+          "name": "Identifiant",
+          "description": "Identifiant de la scène (minuscules, chiffres et _)."
+        },
+        "start": {
+          "name": "Début",
+          "description": "Date et heure de début."
+        },
+        "end": {
+          "name": "Fin",
+          "description": "Date et heure de fin (ignorée si une durée est donnée)."
+        },
+        "duration": {
+          "name": "Durée",
+          "description": "Durée de la scène (prioritaire sur la fin)."
+        },
+        "entities": {
+          "name": "Entités",
+          "description": "Liste ordonnée de {entity, start_value, end_mode (value | previous | none), end_value}."
+        }
+      }
+    },
+    "delete": {
+      "name": "Supprimer une scène temporisée",
+      "description": "Supprime une scène temporisée. Si elle est en cours, ses entités sont restaurées immédiatement.",
+      "fields": {
+        "id": {
+          "name": "Identifiant",
+          "description": "Identifiant de la scène."
+        }
+      }
+    }
   }
 }
