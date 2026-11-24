@@ -1,0 +1,14 @@
+{
+  "domain": "timed_scenes",
+  "name": "Timed Scenes",
+  "codeowners": ["@moichezmoi"],
+  "config_flow": true,
+  "dependencies": ["frontend", "http"],
+  "documentation": "https://github.com/moichezmoi/ha-timed-scenes",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/moichezmoi/ha-timed-scenes/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.4.0"
+}

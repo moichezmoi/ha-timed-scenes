@@ -1,0 +1,13 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Timed Scenes",
+        "description": "Add Timed Scenes? You can then add a Timed Scene card to any dashboard."
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Timed Scenes is already installed."
+    }
+  }
+}
