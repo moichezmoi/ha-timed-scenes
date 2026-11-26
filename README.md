@@ -35,7 +35,7 @@ Supported entity domains: `switch`, `input_boolean`, `select`, `input_select`.
 
 ## Installation
 
-Developed and tested with Home Assistant 2026.11. Minimum version: 2026.2.
+Developed and tested with Home Assistant 2026.11. Minimum version: 2026.3.
 
 ### From the Marketplace
 
