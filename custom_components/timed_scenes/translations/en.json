@@ -13,7 +13,7 @@
   "services": {
     "set": {
       "name": "Set a timed scene",
-      "description": "Creates or replaces a timed scene. Returns {ok, errors} or {ok, id, start, end}.",
+      "description": "Creates or replaces a timed scene. Returns ok and the list of errors, or ok with the id, start and end of the scene.",
       "fields": {
         "id": {
           "name": "Scene ID",
@@ -33,7 +33,7 @@
         },
         "entities": {
           "name": "Entities",
-          "description": "Ordered list of {entity, start_value, end_mode (value | previous | none), end_value}."
+          "description": "Ordered list of entities, each with entity, start_value, end_mode (value, previous or none) and end_value."
         }
       }
     },
