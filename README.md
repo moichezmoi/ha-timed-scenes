@@ -5,9 +5,6 @@ Temporarily apply states to a list of entities during a time window, then restor
 Typical use: *"tomorrow from 14:00, put the heater in eco mode for 3 hours, then go back to its schedule"* —
 or *"switch everything to frost protection during my week of holidays"*.
 
-> **Status: pre-release.** The backend is currently a YAML *package* installed by hand.
-> It will be turned into a custom integration installable from the Home Assistant Marketplace.
-
 ## Features
 
 - **A dashboard card** to plan, edit, clear or stop the timed scene of a device, with a visual editor.
@@ -19,49 +16,35 @@ or *"switch everything to frost protection during my week of holidays"*.
   schedules that control an entity.
 - **Overlapping scenes** on the same entities are handled like a stack: the most recently started scene wins,
   and the original value is restored when the last one ends.
+- **Exact timing**: scenes start and end at the planned second.
 - **Robust**: scenes survive Home Assistant restarts; a scene whose window passed while Home Assistant was
   stopped is dropped with a notification.
 - **English and French** user interface.
 
 Supported entity domains: `switch`, `input_boolean`, `select`, `input_select`.
 
-## How it works
+## Installation
 
-| Part | File | Role |
-|---|---|---|
-| Registry | `packages/timed_scene.yaml` | `sensor.timed_scenes` stores every scene in its `scenes` attribute. |
-| Scripts | `packages/timed_scene.yaml` | `script.timed_scene_set` and `script.timed_scene_delete` (public), plus internal scripts. |
-| Engine | `packages/timed_scene.yaml` | Automation checking every minute (and at startup) which scenes start or end. |
-| Card | `www/timed-scene/timed-scene-card.js` | `custom:timed-scene-card`: display, planning dialog and visual editor. |
+Developed and tested with Home Assistant 2026.11. Minimum version: 2026.2.
 
-## Installation (manual)
+### From the Marketplace
 
-Developed and tested with Home Assistant 2026.11.
+1. *Settings → Marketplace → Add from link*, and enter `https://github.com/moichezmoi/ha-timed-scenes`.
+2. Install **Timed Scenes**, then restart Home Assistant if asked.
+3. *Settings → Devices & services → Add integration → Timed Scenes*.
 
-### 1. Backend
+### Manual
 
-1. Copy `packages/timed_scene.yaml` to `<config>/packages/timed_scene.yaml`.
-2. Enable packages in `configuration.yaml` if not done yet:
-   ```yaml
-   homeassistant:
-     packages: !include_dir_named packages
-   ```
-3. *Developer tools → YAML → Check configuration*, then restart Home Assistant.
-4. Check that `sensor.timed_scenes` exists.
+1. Copy `custom_components/timed_scenes` to `<config>/custom_components/timed_scenes`.
+2. Restart Home Assistant.
+3. *Settings → Devices & services → Add integration → Timed Scenes*.
 
-### 2. Card
+The card is provided by the integration: there is no dashboard resource to declare. After an update,
+reload the browser page to get the new version of the card.
 
-1. Copy `www/timed-scene/timed-scene-card.js` to `<config>/www/timed-scene/timed-scene-card.js`.
-2. *Settings → Dashboards → ⋮ → Resources → Add resource*:
-   - URL: `/local/timed-scene/timed-scene-card.js?v=0.3.2`
-   - Type: *JavaScript module*
-3. Reload the browser page (Ctrl+F5).
+## The card
 
-When updating the card, change the `?v=` number of the resource so browsers load the new file.
-
-## Card configuration
-
-The card has a visual editor. Equivalent YAML:
+Add a **Timed Scene** card to a dashboard and configure it with the visual editor. Equivalent YAML:
 
 ```yaml
 type: custom:timed-scene-card
@@ -96,10 +79,16 @@ entities:
 | `entities[].end.mode` | `fixed` (`value`), `ask` (`default`), `previous` (restore) or `none` (leave unchanged). |
 | `entities[].show` | `true` / `false` to force showing / hiding the value in the card. By default, asked values are shown. |
 
-## Using the scripts from automations
+## Actions
+
+The card uses two actions, which can also be called from automations and scripts.
+
+### `timed_scenes.set`
+
+Creates a scene, or replaces the scene with the same `id`.
 
 ```yaml
-action: script.timed_scene_set
+action: timed_scenes.set
 data:
   id: living_room_heater
   start: "2026-12-24 14:00:00"
@@ -112,19 +101,38 @@ data:
     - entity: switch.living_room_heater_schedule
       start_value: "off"
       end_mode: previous
+response_variable: result         # {ok: true, id, start, end} or {ok: false, errors: [...]}
 ```
 
-The script returns `{ok: true}` or `{ok: false, errors: [...]}`. Saving a scene with an existing `id`
-replaces it. `script.timed_scene_delete` (`id`) removes a scene, restoring the entities immediately if it is running.
+### `timed_scenes.delete`
+
+Deletes the scene `id`. If it is running, its entities are restored immediately.
+
+```yaml
+action: timed_scenes.delete
+data:
+  id: living_room_heater
+```
+
+## The `sensor.timed_scenes` entity
+
+Its state is the number of scenes, and its `scenes` attribute contains every scene with its `status`
+(`planned` or `ongoing`). It can be used in automations, for example:
+
+```yaml
+condition: template
+value_template: >
+  {{ (state_attr('sensor.timed_scenes', 'scenes') or {}).get('living_room_heater', {}).get('status') == 'ongoing' }}
+```
 
 ## Development
 
-Tests are in `tests/`:
+Tests are in `tests/` and run automatically on GitHub for every push:
 
-- **Backend** — starts a real Home Assistant with the package and runs scenarios, including a restart:
+- **Integration** — starts a real Home Assistant with the integration and runs scenarios, including a restart:
   ```bash
-  pip install homeassistant home-assistant-frontend numpy
-  python tests/backend/run_tests.py
+  pip install homeassistant==2026.2.3 home-assistant-frontend==20260128.6 numpy
+  python tests/integration/run_tests.py
   ```
 - **Card** — runs the card, the dialog and the editor in a simulated browser (jsdom) with a fake Home Assistant:
   ```bash

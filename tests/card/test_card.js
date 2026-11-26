@@ -116,6 +116,10 @@ const planned = {
   check("title 'Plan a timed scene'", sr.querySelector("h2").textContent === "Plan a timed scene");
   const dates = [...sr.querySelectorAll('input[type="datetime-local"]')];
   const dur = [...sr.querySelectorAll(".duration input")];
+  // jsdom ignores styles inside shadow roots: copy the dialog (styles included) into a plain page.
+  const plain = new JSDOM(`<!DOCTYPE html><body>${sr.innerHTML}</body>`).window;
+  const rows = [...plain.document.querySelectorAll(".choice")];
+  check("Duration / End rows: radio beside the field (display flex)", rows.length === 2 && rows.every((r) => plain.getComputedStyle(r).display === "flex"), rows.map((r) => plain.getComputedStyle(r).display));
   check("start + end native fields, end disabled", dates.length === 2 && dates[1].disabled && !dates[0].disabled);
   check("duration dd:hh:mm (no seconds) = 2 d 03 h 30 min", dur.length === 3 && dur.map((i) => i.value).join(":") === "2:03:30", dur.map((i) => i.value));
   check("end prefilled = start + default duration", (() => {

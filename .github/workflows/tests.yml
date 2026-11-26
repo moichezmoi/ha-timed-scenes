@@ -1,0 +1,35 @@
+# Runs the test suites for every push.
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  integration:
+    name: Integration (real Home Assistant, minimum supported version)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Home Assistant
+        run: pip install homeassistant==2026.2.3 home-assistant-frontend==20260128.6 numpy
+      - name: Run scenarios
+        run: python tests/integration/run_tests.py
+
+  card:
+    name: Card (jsdom)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tests/card
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: npm install
+      - run: npm test
