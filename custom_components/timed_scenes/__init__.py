@@ -39,6 +39,7 @@ SET_SCHEMA = vol.Schema(
     }
 )
 DELETE_SCHEMA = vol.Schema({vol.Required("id"): cv.string})
+RENAME_SCHEMA = vol.Schema({vol.Required("id"): cv.string, vol.Required("new_id"): cv.string})
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -55,8 +56,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: TimedScenesConfigEntry) 
     async def handle_delete(call: ServiceCall) -> ServiceResponse:
         return await manager.async_delete(call.data["id"])
 
+    async def handle_rename(call: ServiceCall) -> ServiceResponse:
+        return await manager.async_rename(call.data["id"], call.data["new_id"])
+
     hass.services.async_register(DOMAIN, "set", handle_set, SET_SCHEMA, supports_response=SupportsResponse.OPTIONAL)
     hass.services.async_register(DOMAIN, "delete", handle_delete, DELETE_SCHEMA, supports_response=SupportsResponse.OPTIONAL)
+    hass.services.async_register(DOMAIN, "rename", handle_rename, RENAME_SCHEMA, supports_response=SupportsResponse.OPTIONAL)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await _async_register_card(hass)
@@ -77,6 +82,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: TimedScenesConfigEntry)
     if unloaded:
         hass.services.async_remove(DOMAIN, "set")
         hass.services.async_remove(DOMAIN, "delete")
+        hass.services.async_remove(DOMAIN, "rename")
         card = hass.data.get(DATA_CARD)
         if card and card["url"]:
             remove_extra_js_url(hass, card["url"])

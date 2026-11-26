@@ -165,6 +165,27 @@ class TimedScenesManager:
         await self.async_reconcile()
         return {"ok": True, "id": scene_id}
 
+    async def async_rename(self, scene_id: str, new_id: str) -> dict[str, Any]:
+        """Moves a scene to another id, keeping everything else (window, status, stored values).
+
+        Used by the card editor when the scene ID of a card is changed while a scene
+        is planned or running. Refused if the new id already has a scene.
+        """
+        errors: list[str] = []
+        if not ID_PATTERN.match(str(new_id)):
+            errors.append("invalid new id (lowercase letters, digits and _ only)")
+        async with self._lock:
+            if scene_id not in self.scenes:
+                errors.append(f"unknown scene: {scene_id}")
+            elif new_id in self.scenes:
+                errors.append(f"a scene already exists for {new_id}")
+            if errors:
+                return {"ok": False, "errors": errors}
+            self.scenes[new_id] = self.scenes.pop(scene_id)
+            await self._save()
+        await self.async_reconcile()  # reschedules the timers and updates the sensor
+        return {"ok": True, "id": scene_id, "new_id": new_id}
+
     # ------------------------------------------------------------------
     # Engine
     # ------------------------------------------------------------------

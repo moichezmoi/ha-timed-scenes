@@ -46,6 +46,20 @@
           "description": "Identifiant de la scène."
         }
       }
+    },
+    "rename": {
+      "name": "Renommer une scène temporisée",
+      "description": "Transfère une scène planifiée ou en cours vers un autre identifiant, en gardant ses horaires et ses valeurs mémorisées. Refusé si le nouvel identifiant a déjà une scène.",
+      "fields": {
+        "id": {
+          "name": "Identifiant",
+          "description": "Identifiant actuel de la scène."
+        },
+        "new_id": {
+          "name": "Nouvel identifiant",
+          "description": "Nouvel identifiant (minuscules, chiffres et _)."
+        }
+      }
     }
   }
 }

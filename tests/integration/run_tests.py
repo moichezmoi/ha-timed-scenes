@@ -16,7 +16,7 @@ import homeassistant.util.dt as dt_util
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-SERVICES = {"timed_scene_set": "set", "timed_scene_delete": "delete"}
+SERVICES = {"timed_scene_set": "set", "timed_scene_delete": "delete", "rename": "rename"}
 RAD = "select.heater_mode"
 S1 = "input_boolean.schedule_weekdays"
 S2 = "input_boolean.schedule_weekend"
@@ -209,15 +209,36 @@ async def main(cfg):
     async with aiohttp.ClientSession() as session:
         async with session.get("http://127.0.0.1:8123/timed_scenes_static/timed-scene-card.js") as resp:
             body = await resp.text()
-            check("card file served (HTTP 200, card v0.4.1)", resp.status == 200 and 'TS_VERSION = "0.4.1"' in body, resp.status)
+            check("card file served (HTTP 200, card v0.5.0)", resp.status == 200 and 'TS_VERSION = "0.5.0"' in body, resp.status)
     # The frontend injects these URLs in every page (and pushes them live to open browsers).
     extra = hass.data["frontend_extra_module_url"].urls
-    check("frontend loads the card (with version)", "/timed_scenes_static/timed-scene-card.js?v=0.4.1" in extra, sorted(extra))
+    check("frontend loads the card (with version)", "/timed_scenes_static/timed-scene-card.js?v=0.5.0" in extra, sorted(extra))
     entry = hass.config_entries.async_entries("timed_scenes")[0]
     await hass.config_entries.async_reload(entry.entry_id)
     await hass.async_block_till_done()
     extra = hass.data["frontend_extra_module_url"].urls
-    check("reload: card registered once, no error", sorted(extra).count("/timed_scenes_static/timed-scene-card.js?v=0.4.1") == 1, sorted(extra))
+    check("reload: card registered once, no error", sorted(extra).count("/timed_scenes_static/timed-scene-card.js?v=0.5.0") == 1, sorted(extra))
+
+    print("\n=== 8c. Rename (scene ID of a card changed) ===")
+    r = await call("rename", id="nothing_here", new_id="x")
+    check("unknown scene refused", r.get("ok") is False and any("unknown scene" in e for e in r["errors"]), r)
+    await call("timed_scene_set", id="old_id", start=iso(now() + timedelta(seconds=2)), duration={"seconds": 2},
+               entities=[{"entity": RAD, "start_value": "comfort", "end_mode": "previous"}])
+    await call("timed_scene_set", id="taken", start=iso(now() + timedelta(hours=5)), duration={"hours": 1},
+               entities=[{"entity": RAD, "start_value": "eco", "end_mode": "previous"}])
+    r = await call("rename", id="old_id", new_id="Bad Id")
+    check("invalid new id refused", r.get("ok") is False and any("invalid new id" in e for e in r["errors"]), r)
+    r = await call("rename", id="old_id", new_id="taken")
+    check("existing new id refused (no overwrite)", r.get("ok") is False and any("already exists" in e for e in r["errors"]) and "old_id" in scenes(), r)
+    r = await call("rename", id="old_id", new_id="new_id")
+    check("planned scene renamed", r.get("ok") and "new_id" in scenes() and "old_id" not in scenes() and scenes()["new_id"]["status"] == "planned", (r, list(scenes())))
+    await asyncio.sleep(2.6); await hass.async_block_till_done()
+    check("renamed scene started by its timer", st(RAD) == "comfort" and scenes()["new_id"]["status"] == "ongoing", (st(RAD), scenes().get("new_id")))
+    r = await call("rename", id="new_id", new_id="running_id")
+    check("running scene renamed, stored values kept", r.get("ok") and scenes()["running_id"]["status"] == "ongoing" and scenes()["running_id"]["previous"].get(RAD) == "frost_protection", scenes().get("running_id"))
+    await asyncio.sleep(2.2); await hass.async_block_till_done()
+    check("renamed running scene ended and restored", st(RAD) == "frost_protection" and "running_id" not in scenes(), (st(RAD), list(scenes())))
+    await call("timed_scene_delete", id="taken"); await tick()
 
     print("\n=== 9. Planned scene kept for the restart test ===")
     r = await call("timed_scene_set", id="persist", start=iso(now() + timedelta(days=1)), duration={"hours": 3},

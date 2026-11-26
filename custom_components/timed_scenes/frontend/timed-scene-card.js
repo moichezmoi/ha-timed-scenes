@@ -25,11 +25,12 @@
  * No build step, no dependency: plain Web Components.
  */
 
-const TS_VERSION = "0.4.1";
+const TS_VERSION = "0.5.0";
 const TS_REGISTRY = "sensor.timed_scenes";
 const TS_DOMAIN = "timed_scenes";
 const TS_SERVICE_SET = "set";
 const TS_SERVICE_DELETE = "delete";
+const TS_SERVICE_RENAME = "rename";
 
 /* ------------------------------------------------------------------ */
 /*  Translations                                                       */
@@ -94,6 +95,13 @@ const TS_I18N = {
     ed_remove: "Remove",
     ed_suggest: "{n} schedule(s) control this entity.",
     ed_suggest_add: "Add them",
+    ed_transfer_text: "An occurrence of {old} is {status}. Transfer it to {new}?",
+    ed_status_planned: "planned",
+    ed_status_running: "running",
+    ed_transfer: "Transfer",
+    ed_transfer_conflict: "{new} already has a scene: transfer is not possible.",
+    ed_transfer_done: "Scene transferred to {new}.",
+    ed_transfer_error: "Transfer failed:",
   },
   fr: {
     default_title: "Scène temporisée",
@@ -154,6 +162,13 @@ const TS_I18N = {
     ed_remove: "Retirer",
     ed_suggest: "{n} planning(s) pilotent cette entité.",
     ed_suggest_add: "Les ajouter",
+    ed_transfer_text: "Une occurrence de {old} est {status}. La transférer vers {new} ?",
+    ed_status_planned: "planifiée",
+    ed_status_running: "en cours",
+    ed_transfer: "Transférer",
+    ed_transfer_conflict: "{new} a déjà une scène : transfert impossible.",
+    ed_transfer_done: "Scène transférée vers {new}.",
+    ed_transfer_error: "Échec du transfert :",
   },
 };
 
@@ -1026,6 +1041,8 @@ class TimedSceneCardEditor extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._open = new Set(); // indexes of expanded entity blocks
     this._lastEmitted = "";
+    this._originalId = undefined; // scene ID of the card when the editor was opened
+    this._transferred = undefined; // { to } after a successful transfer
   }
 
   set hass(hass) {
@@ -1033,6 +1050,7 @@ class TimedSceneCardEditor extends HTMLElement {
     this._hass = hass;
     this.shadowRoot.querySelectorAll("ha-form").forEach((f) => (f.hass = hass));
     if (first) this._render();
+    else this._updateTransferNotice(); // the registry may have changed
   }
 
   setConfig(config) {
@@ -1042,6 +1060,7 @@ class TimedSceneCardEditor extends HTMLElement {
     if (incoming === this._lastEmitted && this._config) return;
     this._config = JSON.parse(incoming || "{}");
     if (!Array.isArray(this._config.entities)) this._config.entities = [];
+    if (this._originalId === undefined) this._originalId = this._config.scene_id || "";
     this._render();
   }
 
@@ -1169,8 +1188,21 @@ class TimedSceneCardEditor extends HTMLElement {
           border-radius: 8px; background: rgba(var(--rgb-primary-color, 3, 169, 244), 0.1);
         }
         .suggest span { flex: 1; }
+        .transfer {
+          display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 8px;
+          background: rgba(255, 152, 0, 0.12); color: var(--primary-text-color);
+        }
+        .transfer[hidden] { display: none; }
+        .transfer ha-icon { color: var(--warning-color, #ff9800); }
+        .transfer.done { background: rgba(76, 175, 80, 0.12); }
+        .transfer.done ha-icon { color: var(--success-color, #4caf50); }
+        .transfer span { flex: 1; }
+        .transfer code { font-family: var(--code-font-family, monospace); }
         ${TS_BUTTON_CSS}
         ${TS_FIELD_CSS}
+        /* After TS_FIELD_CSS: these boxes are children of .fields but must stay in a row. */
+        .fields > .suggest, .fields > .transfer { display: flex; }
+        .fields > .transfer[hidden] { display: none; }
         button.add { margin-top: 4px; }
       </style>
       <h3>${tsEsc(t("ed_general"))}</h3>
@@ -1200,6 +1232,7 @@ class TimedSceneCardEditor extends HTMLElement {
       if (autoId) {
         this._config.scene_id = tsSlug(v);
         idField.data = { scene_id: this._config.scene_id };
+        this._updateTransferNotice();
       }
       this._emit();
     });
@@ -1209,6 +1242,7 @@ class TimedSceneCardEditor extends HTMLElement {
     }, (v) => {
       this._config.scene_id = tsSanitizeId(v);
       idField.data = { scene_id: this._config.scene_id };
+      this._updateTransferNotice();
       this._emit();
     });
     const durationField = tsDurationField(this._hass, {
@@ -1217,7 +1251,74 @@ class TimedSceneCardEditor extends HTMLElement {
       this._config.default_duration = tsDurationToString(d);
       this._emit();
     });
-    container.append(titleField, idField, durationField);
+    // Notice shown when the scene ID is changed while a scene exists under the old one.
+    const notice = document.createElement("div");
+    notice.className = "transfer";
+    notice.hidden = true;
+    container.append(titleField, idField, notice, durationField);
+    this._updateTransferNotice();
+  }
+
+  /**
+   * Changing the scene ID of a card would leave a planned or running scene under the
+   * old ID, with no card to clear it. The notice offers to transfer it (immediately,
+   * through the timed_scenes.rename action). Nothing is deleted automatically: another
+   * card may still use the old ID.
+   */
+  _updateTransferNotice() {
+    const box = this.shadowRoot.querySelector(".transfer");
+    if (!box || !this._hass || !this._config) return;
+    const t = (k) => this._t(k);
+    const fill = (text, values) =>
+      Object.entries(values).reduce((acc, [k, v]) => acc.replace(`{${k}}`, `<code>${tsEsc(v)}</code>`), tsEsc(text));
+    const oldId = this._originalId;
+    const newId = this._config.scene_id || "";
+    const reg = this._hass.states[TS_REGISTRY];
+    const scenes = (reg && reg.attributes.scenes) || {};
+
+    if (this._transferred && this._transferred.to === newId) {
+      box.hidden = false;
+      box.className = "transfer done";
+      box.innerHTML = `<ha-icon icon="mdi:check-circle-outline"></ha-icon><span>${fill(t("ed_transfer_done"), { new: newId })}</span>`;
+      return;
+    }
+    this._transferred = undefined;
+    const scene = scenes[oldId];
+    if (!oldId || !newId || oldId === newId || !scene) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+    const status = t(scene.status === "ongoing" ? "ed_status_running" : "ed_status_planned");
+    box.hidden = false;
+    box.className = "transfer";
+    if (scenes[newId]) {
+      box.innerHTML = `<ha-icon icon="mdi:alert-outline"></ha-icon><span>${fill(t("ed_transfer_text"), { old: oldId, status, new: newId })}
+        ${fill(t("ed_transfer_conflict"), { new: newId })}</span>`;
+      return;
+    }
+    box.innerHTML = `<ha-icon icon="mdi:alert-outline"></ha-icon><span>${fill(t("ed_transfer_text"), { old: oldId, status, new: newId })}</span>
+      <button>${tsEsc(t("ed_transfer"))}</button>`;
+    box.querySelector("button").addEventListener("click", async (ev) => {
+      ev.target.disabled = true;
+      try {
+        const response = await tsCallService(this._hass, TS_SERVICE_RENAME, { id: oldId, new_id: newId });
+        if (response && response.ok) {
+          this._originalId = newId; // the scene now follows the card
+          this._transferred = { to: newId };
+          this._updateTransferNotice();
+          return;
+        }
+        this._showTransferError(box, (response && response.errors) || ["?"]);
+      } catch (err) {
+        this._showTransferError(box, [(err && (err.message || err.code)) || String(err)]);
+      }
+    });
+  }
+
+  _showTransferError(box, errors) {
+    box.className = "transfer";
+    box.innerHTML = `<ha-icon icon="mdi:alert-outline"></ha-icon><span>${tsEsc(this._t("ed_transfer_error"))} ${errors.map(tsEsc).join(", ")}</span>`;
   }
 
   _renderRow(item, index) {

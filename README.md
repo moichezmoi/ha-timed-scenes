@@ -5,6 +5,16 @@ Temporarily apply states to a list of entities during a time window, then restor
 Typical use: *"tomorrow from 14:00, put the heater in eco mode for 3 hours, then go back to its schedule"* —
 or *"switch everything to frost protection during my week of holidays"*.
 
+## Screenshots
+
+| Nothing planned | Scene running |
+|---|---|
+| <img src="https://raw.githubusercontent.com/moichezmoi/ha-timed-scenes/main/docs/images/TimedScenes_Unplanned.png" alt="Card with nothing planned" width="380"> | <img src="https://raw.githubusercontent.com/moichezmoi/ha-timed-scenes/main/docs/images/TimedScenes_Planned.png" alt="Card with a running scene" width="380"> |
+
+| Planning dialog | Visual editor |
+|---|---|
+| <img src="https://raw.githubusercontent.com/moichezmoi/ha-timed-scenes/main/docs/images/TimedScenes_PlanWindow.png" alt="Planning dialog" width="380"> | <img src="https://raw.githubusercontent.com/moichezmoi/ha-timed-scenes/main/docs/images/TimedScenes_Config.png" alt="Card visual editor" width="380"> |
+
 ## Features
 
 - **A dashboard card** to plan, edit, clear or stop the timed scene of a device, with a visual editor.
@@ -81,7 +91,7 @@ entities:
 
 ## Actions
 
-The card uses two actions, which can also be called from automations and scripts.
+The card uses these actions, which can also be called from automations and scripts.
 
 ### `timed_scenes.set`
 
@@ -112,6 +122,19 @@ Deletes the scene `id`. If it is running, its entities are restored immediately.
 action: timed_scenes.delete
 data:
   id: living_room_heater
+```
+
+### `timed_scenes.rename`
+
+Moves a planned or running scene to another `id`, keeping its window and the values stored for the restore.
+Refused if `new_id` already has a scene. The card editor offers it when the scene ID of a card is changed
+while a scene exists under the old ID.
+
+```yaml
+action: timed_scenes.rename
+data:
+  id: living_room_heater
+  new_id: bedroom_heater
 ```
 
 ## The `sensor.timed_scenes` entity

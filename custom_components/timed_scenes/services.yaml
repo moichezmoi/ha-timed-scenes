@@ -33,3 +33,16 @@ delete:
       example: living_room_heater
       selector:
         text:
+
+rename:
+  fields:
+    id:
+      required: true
+      example: living_room_heater
+      selector:
+        text:
+    new_id:
+      required: true
+      example: bedroom_heater
+      selector:
+        text:

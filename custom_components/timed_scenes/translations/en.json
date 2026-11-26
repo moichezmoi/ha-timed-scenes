@@ -46,6 +46,20 @@
           "description": "Identifier of the scene."
         }
       }
+    },
+    "rename": {
+      "name": "Rename a timed scene",
+      "description": "Moves a planned or running scene to another ID, keeping its window and stored values. Refused if the new ID already has a scene.",
+      "fields": {
+        "id": {
+          "name": "Scene ID",
+          "description": "Current identifier of the scene."
+        },
+        "new_id": {
+          "name": "New scene ID",
+          "description": "New identifier (lowercase letters, digits and _)."
+        }
+      }
     }
   }
 }

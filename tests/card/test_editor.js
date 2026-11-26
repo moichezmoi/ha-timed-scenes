@@ -32,7 +32,13 @@ function makeHass(withScheduler) {
     states["switch.schedule_weekdays"] = { entity_id: "switch.schedule_weekdays", state: "on", attributes: { friendly_name: "Weekdays", entities: ["select.heater_mode"] } };
     states["switch.schedule_weekend"] = { entity_id: "switch.schedule_weekend", state: "off", attributes: { friendly_name: "Weekend", entities: "select.heater_mode" } };
   }
-  return { language: "en", locale: { language: "en" }, config: { time_zone: "Europe/Paris" }, states };
+  return { language: "en", locale: { language: "en" }, config: { time_zone: "Europe/Paris" }, states, connection };
+}
+const calls = [];
+let nextResponse = { ok: true };
+const connection = { sendMessagePromise: async (msg) => { calls.push(msg); return { response: nextResponse }; } };
+function withScenes(hass, scenes) {
+  return { ...hass, states: { ...hass.states, "sensor.timed_scenes": { entity_id: "sensor.timed_scenes", state: "1", attributes: { scenes } } } };
 }
 
 (async () => {
@@ -178,6 +184,58 @@ function makeHass(withScheduler) {
   await new Promise((r) => setTimeout(r, 120));
   check("move (full re-render): scroll position restored", pos === 700 && em3.entities[0].entity === "select.heater_mode", pos);
   check("temporary min-height released on host", ed3.style.minHeight === "");
+
+  console.log("\n=== Transfer notice (scene ID changed while a scene exists) ===");
+  const edT = Card.getConfigElement();
+  w.document.body.appendChild(edT);
+  const planned = { heater_override: { status: "planned", start: "2026-11-27T14:00:00+01:00", end: "2026-11-27T17:00:00+01:00", entities: [] } };
+  edT.hass = withScenes(makeHass(false), planned);
+  edT.setConfig({ title: "Heater override", scene_id: "heater_override", entities: [] });
+  await tick();
+  const tBox = () => edT.shadowRoot.querySelector(".transfer");
+  const idForm = () => [...edT.shadowRoot.querySelectorAll(".general ha-form")].find((f) => f.schema[0].name === "scene_id");
+  check("no notice while the ID is unchanged", tBox().hidden);
+  fire(idForm(), "heater_override_2");
+  check("notice shown after the ID change", !tBox().hidden && tBox().textContent.includes("An occurrence of heater_override is planned. Transfer it to heater_override_2?"), tBox().textContent);
+  check("notice placed right under the Scene ID field", tBox().previousElementSibling === idForm());
+  const plainEd = new JSDOM(`<!DOCTYPE html><body>${edT.shadowRoot.innerHTML}</body>`).window;
+  check("notice displayed as a row (flex)", plainEd.getComputedStyle(plainEd.document.querySelector(".transfer")).display === "flex", plainEd.getComputedStyle(plainEd.document.querySelector(".transfer")).display);
+  fire(idForm(), "heater_override");
+  check("notice hidden when back to the original ID", tBox().hidden);
+  // running + conflict
+  edT.hass = withScenes(makeHass(false), { ...planned, heater_override: { ...planned.heater_override, status: "ongoing" }, other: { status: "planned", entities: [] } });
+  fire(idForm(), "other");
+  check("running scene + conflict: no button, conflict message", tBox().textContent.includes("is running") && tBox().textContent.includes("other already has a scene: transfer is not possible.") && !tBox().querySelector("button"), tBox().textContent);
+  // transfer
+  edT.hass = withScenes(makeHass(false), planned);
+  fire(idForm(), "bedroom_heater");
+  nextResponse = { ok: true };
+  tBox().querySelector("button").click();
+  await tick();
+  check("Transfer calls timed_scenes.rename {id, new_id}", calls.at(-1).domain === "timed_scenes" && calls.at(-1).service === "rename" && JSON.stringify(calls.at(-1).service_data) === '{"id":"heater_override","new_id":"bedroom_heater"}', calls.at(-1));
+  check("success message", tBox().textContent.includes("Scene transferred to bedroom_heater.") && tBox().classList.contains("done"), tBox().textContent);
+  edT.hass = withScenes(makeHass(false), { bedroom_heater: planned.heater_override }); // registry updated by the backend
+  fire(idForm(), "bedroom_heater_x");
+  check("after transfer, the new ID is the reference", tBox().textContent.includes("An occurrence of bedroom_heater is planned"), tBox().textContent);
+  fire(idForm(), "bedroom_heater");
+  check("back to the transferred ID: no notice", tBox().hidden);
+  // error from the backend
+  fire(idForm(), "elsewhere");
+  nextResponse = { ok: false, errors: ["a scene already exists for elsewhere"] };
+  tBox().querySelector("button").click();
+  await tick();
+  check("backend error displayed", tBox().textContent.includes("Transfer failed: a scene already exists for elsewhere"), tBox().textContent);
+  nextResponse = { ok: true };
+
+  console.log("\n=== Suggestion box layout ===");
+  const edS = Card.getConfigElement();
+  w.document.body.appendChild(edS);
+  edS.hass = makeHass(true);
+  edS.setConfig({ title: "T", scene_id: "t", entities: [{ entity: "select.heater_mode", start: { mode: "ask", default: "eco" }, end: { mode: "previous" } }] });
+  await tick();
+  const plainSug = new JSDOM(`<!DOCTYPE html><body>${edS.shadowRoot.innerHTML}</body>`).window;
+  const sugEl = plainSug.document.querySelector(".suggest");
+  check("suggestion box displayed as a row (flex)", sugEl && plainSug.getComputedStyle(sugEl).display === "flex", sugEl && plainSug.getComputedStyle(sugEl).display);
 
   console.log("\n=== No re-render on echoed config ===");
   const before = gForms()[0];
