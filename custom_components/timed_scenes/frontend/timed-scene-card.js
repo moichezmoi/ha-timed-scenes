@@ -25,7 +25,7 @@
  * No build step, no dependency: plain Web Components.
  */
 
-const TS_VERSION = "0.4.0";
+const TS_VERSION = "0.4.1";
 const TS_REGISTRY = "sensor.timed_scenes";
 const TS_DOMAIN = "timed_scenes";
 const TS_SERVICE_SET = "set";
@@ -434,6 +434,8 @@ const TS_BUTTON_CSS = `
 
 const TS_FIELD_CSS = `
   .fields > * { display: block; }
+  /* Radio + field rows of the dialog (Duration / End) stay side by side. */
+  .fields > .choice { display: flex; }
   .fields > * + * { margin-top: 8px; }
   /* The entity picker draws its label above the field: give it more room. */
   .fields > .picker + * { margin-top: 16px; }
