@@ -12,6 +12,7 @@ on:
 jobs:
   marketplace:
     name: Marketplace (HACS) validation
+    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

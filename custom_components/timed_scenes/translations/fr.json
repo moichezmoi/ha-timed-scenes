@@ -13,7 +13,7 @@
   "services": {
     "set": {
       "name": "Définir une scène temporisée",
-      "description": "Crée ou remplace une scène temporisée. Renvoie {ok, errors} ou {ok, id, start, end}.",
+      "description": "Crée ou remplace une scène temporisée. Renvoie ok et la liste des erreurs, ou ok avec l'identifiant, le début et la fin de la scène.",
       "fields": {
         "id": {
           "name": "Identifiant",
@@ -33,7 +33,7 @@
         },
         "entities": {
           "name": "Entités",
-          "description": "Liste ordonnée de {entity, start_value, end_mode (value | previous | none), end_value}."
+          "description": "Liste ordonnée d'entités, chacune avec entity, start_value, end_mode (value, previous ou none) et end_value."
         }
       }
     },
